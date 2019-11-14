@@ -1,12 +1,38 @@
 const rp = require('request-promise');
 const cheerio = require('cheerio');
 const fs = require('fs');
+const standard_input = process.stdin;
+standard_input.setEncoding('utf-8');
 
 String.prototype.initCap = function () {
   return this.toLowerCase().replace(/(?:^|\s)[a-z]/g, function (m) {
      return m.toUpperCase();
   });
 };
+
+function getMenuSelection() {
+  console.log('///////////////////////////////');
+  console.log('/////  Supergen Scraper  //////');
+  console.log('///////////////////////////////');
+  console.log('');
+  console.log('Commands:');
+  console.log('scrape - Scrape Supergen Masterlist');
+  console.log('export - Export Supergen meta');
+  console.log('exit   - Exit');
+
+  standard_input.on('data', function (data) {
+    if(data === 'exit\r\n') {
+      console.log("User input complete, program exit.");
+      process.exit();
+    } else if(data === 'scrape\r\n') {
+      scrapeToFile();
+    } else if(data === 'export\r\n') {
+      parseScrape();
+    } else {
+      console.log('Invalid input');
+    }
+  });
+}
 
 function readScrapeFromFile() {
   var fs = require('fs'),
@@ -28,7 +54,7 @@ function scrapeToFile(url) {
     const body = $('body');
     fs.writeFile('scraped-supergens.html', body, (err) => {
       if (err) throw err;
-      console.log('Scrape saved!');
+      console.log('Supergen html scraped and saved!');
     });
 
   })
@@ -76,4 +102,5 @@ function parseScrape() {
 }
 
 //scrapeToFile(`https://www.reddit.com/r/MyNoise/comments/3hw95k/supergen_masterlist/`);
-parseScrape();
+//parseScrape();
+getMenuSelection();
