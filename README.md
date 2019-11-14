@@ -1,5 +1,5 @@
 # Supergen Scraper
-Scrapes meta from MyNoise supergen master list into a json file.
+Node app that scrapes meta from MyNoise supergen master list into a json file.
 Here is the user-compiled supergen master list on reddit:
 https://www.reddit.com/r/MyNoise/comments/3hw95k/supergen_masterlist/
 
