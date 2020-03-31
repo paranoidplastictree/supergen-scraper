@@ -64,13 +64,30 @@ function scrapeToFile(url) {
 }
 
 function addToList(newItems, targetList) {
-  newItems.forEach((item) => {
-    const itemInitCap = item.initCap();
-    if (!targetList.includes(itemInitCap)) {
-      targetList.push(itemInitCap);
+  const result = { itemSounds: [] };
+
+  newItems.forEach((nextSound) => {
+    const nextSoundInitCap = nextSound.initCap();
+    let matchFound = false;
+
+    targetList.forEach((targetListItem) => {
+      if (targetListItem.name === nextSoundInitCap) {
+        matchFound = true;
+        result.itemSounds.push(targetListItem);
+        return;
+      }
+    });
+
+    if (!matchFound) {
+      const newSound = {id: targetList.length, name: nextSoundInitCap};
+      targetList.push(newSound);
+      result.itemSounds.push(newSound);
     }
+
+    result.targetList = targetList.sort((a, b) => (a.name > b.name) ? 1 : -1);
+    result.itemSounds = result.itemSounds.sort((a, b) => (a.name > b.name) ? 1 : -1);
   });
-  return targetList;
+  return result;
 }
 
 function parseScrape() {
@@ -89,11 +106,14 @@ function parseScrape() {
 
   $(links).each(function(i, elem) {
     const sounds = $(elem).parent().next('ul._33MEMislY0GAlB78wL1_CR').find('li p').text().replace('Sounds Used: ', '').split(', ');
-    supergenInfo.sounds = addToList(sounds, supergenInfo.sounds).sort();
+    const result = addToList(sounds, supergenInfo.sounds);
+    supergenInfo.sounds = result.targetList;
+    
     supergenInfo.supergens.push({
+      id: i,
       name: $(elem).text(),
       href: $(elem).attr('href'),
-      sounds: sounds
+      sounds: result.itemSounds
     });
   });
 
