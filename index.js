@@ -17,8 +17,9 @@ function getMenuSelection() {
   console.log('');
   console.log('Commands:');
   console.log('scrape masterlist - Scrape Supergen Masterlist');
-  console.log('export supergen meta - Export Supergen meta');
+  console.log('export supergen - Export Supergen meta');
   console.log('scrape mynoise - Scrape MyNoise Noise Machines');
+  console.log('export mynoise - Export MyNoise Noise Machine meta');
   console.log('exit   - Exit');
 
   const supergenMasterListUrl = `https://www.reddit.com/r/MyNoise/comments/3hw95k/supergen_masterlist/`;
@@ -32,11 +33,11 @@ function getMenuSelection() {
       process.exit();
     } else if(data === 'scrape masterlist\r\n') {
       scrapeToFile(supergenMasterListUrl, supergenScrapeFileName);
-    } else if(data === 'export supergen meta\r\n') {
+    } else if(data === 'export supergen\r\n') {
       parseSupergenScrape(supergenScrapeFileName);
     } else if(data === 'scrape mynoise\r\n') {
       scrapeToFile(myNoiseMachinesUrl, myNoiseScrapeFileName);
-    } else if(data === 'export mynoise meta\r\n') {
+    } else if(data === 'export mynoise\r\n') {
       parseMyNoiseScrape(myNoiseScrapeFileName);
     } else {
       console.log('Invalid input');
@@ -47,7 +48,7 @@ function getMenuSelection() {
 function readScrapeFromFile(sourceFileName) {
   var fs = require('fs'),
     path = require('path'),    
-    filePath = path.join(__dirname, sourceFileName);
+    filePath = path.join(__dirname, 'scrapes', sourceFileName);
   return fs.readFileSync(filePath, {encoding:'utf-8', flag:'r'});
 }
 
@@ -62,7 +63,7 @@ function scrapeToFile(sourceUrl, targetFileName) {
   rp(options)
   .then(($) => {
     const body = $('body');
-    fs.writeFile('', body, (err) => {
+    fs.writeFile('scrapes/' + targetFileName, body, (err) => {
       if (err) throw err;
       console.log('html scraped and saved!');
     });
@@ -127,36 +128,8 @@ function parseSupergenScrape(sourceFileName) {
     });
   });
 
-  fs.writeFileSync('supergens.js', JSON.stringify(supergenInfo));
+  fs.writeFileSync('output/supergens.json', JSON.stringify(supergenInfo));
   console.log('Supergens json saved!');
-}
-
-// TODO: Reuse this for both supergen sounds and noise machine categories
-function addNewItems(newItems, targetList) {
-  const result = { itemList: [] };
-
-  newItems.forEach((nextItem) => {
-    const nextItemInitCap = nextItem.initCap();
-    let matchFound = false;
-
-    targetList.forEach((targetListItem) => {
-      if (targetListItem.name === nextItemInitCap) {
-        matchFound = true;
-        result.itemList.push(targetListItem);
-        return;
-      }
-    });
-
-    if (!matchFound) {
-      const newItem = {id: targetList.length, name: nextItemInitCap};
-      targetList.push(newItem);
-      result.itemList.push(newItem);
-    }
-
-    result.targetList = targetList.sort((a, b) => (a.name > b.name) ? 1 : -1);
-    result.itemList = result.itemList.sort((a, b) => (a.name > b.name) ? 1 : -1);
-  });
-  return result;
 }
 
 function parseMyNoiseScrape(sourceFileName) {
@@ -198,44 +171,40 @@ function parseMyNoiseScrape(sourceFileName) {
 
   const generatorLists = $('div.generator-list');
   $(generatorLists).each(function(i, elem) {
-    const title = $(elem).find('h1').text();
+    const h1 = $(elem).find('h1');
+    $(h1).find('a, span').remove();
+    const title = $(h1).text().trim();
     noiseMachineInfo.listNames.push(title);
   });
 
-  const noiseMachineLinks = $(elem).find('.DIM a');
+  const noiseMachineLinks = $('.generator-list .DIM a');
   $(noiseMachineLinks).each(function(i, elem) {
-    const parentTitle = $(elem).parent('.generator-list').find('h1').text();
-    let categories = $(elem).className.split(/\s+/);
-    categories.pop(); // removes 'hint'
-    categories.pop(); // removes machine short name
+    const h1 = $(elem).closest('.generator-list').find('h1');
+    $(h1).find('a, span').remove();
+    const parentTitle = $(h1).text().trim();
+    const classNames = $(elem).attr('class');
+    let categories = [];
+    if (classNames !== undefined) {
+      categories = $(elem).attr('class').split(/\s+/);
+      categories.pop(); // removes 'hint'
+      categories.pop(); // removes machine short name
+    }
 
-    const result = addNewItems(categories, noiseMachineInfo.noiseMachineCategories);
-    noiseMachineInfo.noiseMachineCategories = result.targetList;
+    const categoryList = categories.map(cat => {
+      return noiseMachineCategories.find(x => x.id === cat)
+    });
+
     noiseMachineInfo.noiseMachines.push({
       id: i,
       name: $(elem).text(),
       href: $(elem).attr('href'),
-      categories: result.itemList // TODO: create a friendly mapping from class name to category name
+      generatorType: parentTitle,
+      categories: categoryList
     });
   });
 
-  $(links).each(function(i, elem) {
-    const sounds = $(elem).parent().next('ul._33MEMislY0GAlB78wL1_CR').find('li p').text().replace('Sounds Used: ', '').split(', ');
-    const result = addToList(sounds, supergenInfo.sounds);
-    supergenInfo.sounds = result.targetList;
-    
-    supergenInfo.supergens.push({
-      id: i,
-      name: $(elem).text(),
-      href: $(elem).attr('href'),
-      sounds: result.itemSounds
-    });
-  });
-
-  fs.writeFileSync('supergens.js', JSON.stringify(supergenInfo));
-  console.log('Supergens json saved!');
+  fs.writeFileSync('output/noiseGenerators.json', JSON.stringify(noiseMachineInfo));
+  console.log('Noise Generator json saved!');
 }
 
-//scrapeToFile(`https://www.reddit.com/r/MyNoise/comments/3hw95k/supergen_masterlist/`);
-//parseScrape();
 getMenuSelection();
