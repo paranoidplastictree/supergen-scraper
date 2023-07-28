@@ -18,7 +18,8 @@ const scrapeToFile = (sourceUrl, targetFileName) => {
 
     rp(options)
         .then(($) => {
-            const body = $('body');
+            //const body = $('body');
+            const body = $.html();
             fs.writeFile('scrapes/' + targetFileName, body, (err) => {
                 if (err) throw err;
                 console.log('html scraped and saved!');

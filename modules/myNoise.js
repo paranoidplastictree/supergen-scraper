@@ -1,6 +1,8 @@
 const cheerio = require('cheerio');
 const fs = require('fs');
 const {scrapeToFile, readScrapeFromFile} = require('../util/scrapeIO.js');
+const {readJSONLToArray} = require('../util/IO.js');
+
 // const noiseMachineInfo = require('../output/noiseGeneratorInfo.json');
 
 const noiseMachineCategories = [
@@ -38,9 +40,19 @@ const parseMyNoiseScrape = (sourceFileName) => {
 
     const noiseMachineInfo = {
         listNames: [],
-        noiseMachineCategories: noiseMachineCategories,
+        //noiseMachineCategories: noiseMachineCategories,
+        noiseMachineCategories: [],
         noiseMachines: []
     };
+
+    const noiseMachineCategoryIcons  = $('img.powertip');
+    $(noiseMachineCategoryIcons).each(function (i, elem) {
+        const classes = $(elem).attr('class').split(/\s+/);;
+        classes.pop(); // removes powertip class, which leaves "I<category abbreviation>" (eg: IPHO)
+        const categoryId = classes[0].substring(1).toLowerCase();  // remove I prefix
+        const categoryTitle = $('img.' + classes).first().attr('title');
+        noiseMachineInfo.noiseMachineCategories.push({id: categoryId, name: categoryTitle });
+    });
 
     const generatorLists = $('div.generator-list');
     $(generatorLists).each(function (i, elem) {
@@ -64,13 +76,15 @@ const parseMyNoiseScrape = (sourceFileName) => {
         }
 
         const categoryList = categories.map(cat => {
-            return noiseMachineCategories.find(x => x.id === cat)
+            return noiseMachineInfo.noiseMachineCategories.find(x => x.id === cat)
         });
 
+        let href = $(elem).attr('href');
+        href = href.startsWith('.') ? href.substring(1) : href;
         noiseMachineInfo.noiseMachines.push({
             id: i,
             name: $(elem).text(),
-            href: $(elem).attr('href'),
+            href: href,
             generatorType: parentTitle,
             categories: categoryList
         });
@@ -82,14 +96,70 @@ const parseMyNoiseScrape = (sourceFileName) => {
     console.log('Noise Generator json saved!');
 }
 
+const mergeNoiseGeneratorInfo = () => {
+    const data1 = require('../output/noiseGeneratorInfo copy.json'); // manually update this after file copy
+    const data2 = require('../output/noiseGeneratorInfo.json');
+    
+    const noiseMachines = data1.noiseMachineInfo.noiseMachines.map(nm => {
+        return {
+            "name": nm.name,
+            "href": nm.href
+        };
+    });
+
+    data2.noiseMachineInfo.noiseMachines.forEach(nm => {
+        if (nm.href === undefined) {
+            console.log('href empty for ' + nm.name);
+            return;
+        }
+
+        const found = noiseMachines.find(ogNM => ogNM.href.toLowerCase() === nm.href.toLowerCase());
+        if (!found) {
+            noiseMachines.push({ "name": nm.name, "href": nm.href });
+        }
+    });
+
+    fs.writeFileSync('output/noiseMachines.json', JSON.stringify(noiseMachines));
+    console.log('Noise Machine json saved!');
+}
+
+const mergeMissingNoiseGeneratorInfo = () => {
+    const noiseMachines = require('../output/noiseGeneratorInfo.json');
+    const failedPosts = readJSONLToArray('posts_with_undefined_noise_machines.jsonl');
+    const newNoiseMachineDefinitions = [];
+
+    // TODO: Finish this
+    failedPosts.forEach(post => {
+        post.undefined_noise_machines.forEach(undefinedNM => {
+
+            let foundNM = noiseMachines.find(nm => nm.href.toLowerCase().contains(undefinedNM.toLowerCase()));
+            if (foundNM) {
+                // ummmmm....need to do additional troubleshooting
+                console.log('Noise machine found by href for ' + undefinedNM);
+                return;
+            }
+
+            // TODO: scrape noisemachine
+            // if successful, add to dictionary
+            newNoiseMachineDefinitions.push({ "name": nm.name, "href": nm.href });
+        });
+    });
+
+    // TODO: append newNoiseMachineDefinitions to noiseMachines
+
+    // TODO: Write it back
+    // fs.writeFileSync('output/noiseMachines.json', JSON.stringify(noiseMachines));
+    console.log('Noise Machine json saved!');
+}
+
 const scrapeNoiseMachineTitles = () => {
-    const noiseMachineInfo = require('../output/noiseGeneratorInfo.json');
+    const noiseMachines = require('../output/noiseMachines.json');
     const basePath = '/noiseMachinePages/';
     const baseUrl = 'https://mynoise.net/';
     console.log('lets dance, paco');
 
     // Iterate output/noiseGenerators
-    for(var i=0;i<noiseMachineInfo.noiseMachines.length;i++) {
+    for(var i=0;i<noiseMachines.length;i++) {
         
         if (noiseMachines[i].href === undefined) {
             console.log('href not found for ' + noiseMachines.name);
@@ -101,44 +171,37 @@ const scrapeNoiseMachineTitles = () => {
         const fileName = noiseMachines[i].name.replace(/ /g,'') + '.html';
         const savePath = basePath + fileName;
 
-        console.log('scraping ' + savePath);
+        console.log('scraping #' + i + ': ' + savePath);
         scrapeToFile(targetNoiseMachinePath, savePath);
     }
+
+    console.log('Noise Machine Titles scraped');
 }
 
 const hydrateNoiseMachineInfo = () => {
-    const {noiseMachineInfo} = require('../output/noiseGeneratorInfo.json');
-    const basePath = 'noiseMachinePages/';
+    const noiseMachines = require('../output/noiseMachines.json');
+    const basePath = '/noiseMachinePages/';
     const targetHydratedPath = 'output/noiseGeneratorInfo_hydrated.json';
-    const noiseMachines = noiseMachineInfo.noiseMachines;
+
     noiseMachines.forEach((noiseMachine) => {
         const fileName = noiseMachine.name.replace(/ /g,'') + '.html';
         const title = parseNoiseMachineTitle(basePath + fileName);
         noiseMachine.title = title;
     });
 
-    noiseMachineInfo.noiseMachines = noiseMachines;
-
-    fs.writeFileSync(targetHydratedPath, JSON.stringify(noiseMachineInfo));
+    fs.writeFileSync(targetHydratedPath, JSON.stringify(noiseMachines));
     console.log('Noise Generator titles hydrated, json saved to: ' + targetHydratedPath);
 }
 
 const parseNoiseMachineTitle = (sourcePath) => {
     const body = readScrapeFromFile(sourcePath);
     const $ = cheerio.load(body);
-    // This assumes the following html structure for mynoise noise machine title. This may change in the future.
-    // <div class="noiseTitle">
-    //   <div class="bigTitle">
-    //      Unreal Ocean 
-    //      <img src="/Pix/fav_l.png" class="iFV" id="fOCEAN" role="button" alt="favorite" onclick="addGenToFavs()" style="cursor: pointer; display: inline;" title="Favorite">		
-    //   </div>
-    //   <div class="subTitle">Frequency-Shaped Ocean Noise Generator</div>
-    // </div>
-
-    const title = $('.noiseTitle .bigTitle').text().trim();
+    const title = $('.mainTitle span').first().text().trim();
     return title;
 }
 
 exports.parseMyNoiseScrape = parseMyNoiseScrape;
 exports.scrapeNoiseMachineTitles = scrapeNoiseMachineTitles;
 exports.hydrateNoiseMachineInfo = hydrateNoiseMachineInfo;
+exports.mergeNoiseGeneratorInfo = mergeNoiseGeneratorInfo;
+exports.mergeMissingNoiseGeneratorInfo = mergeMissingNoiseGeneratorInfo;

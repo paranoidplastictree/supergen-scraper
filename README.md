@@ -48,6 +48,9 @@ Create a dictionary of Noise Generator meta
 4. Run **hydrate mynoise meta** - Parse scraped noise machine pages for the correct title, update meta file exported in step 2.
 
 
-
+## Discoveries
+The noisemachines page has changed in the last year or so. One significant change is that some noisemachines are no longer listed, but are still publicly accessible if you have the URL.
+We could use this dictionary of noise machines as a starting point, but going forward, it will be less cumbersome to update the dictionary whenever we stumble upon a supergen that references an undocumented noisemachine.
+Furthermore, new categories have been added and the value we are using for category IDs have changed, so it may not behoove us to include or use this data (we aren't using it currently).
 
 

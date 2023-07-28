@@ -1,6 +1,6 @@
 const { scrapeToFile } = require('./util/scrapeIO.js');
 const { parseSupergenScrape } = require('./modules/masterList.js');
-const { parseMyNoiseScrape, scrapeNoiseMachineTitles, hydrateNoiseMachineInfo } = require('./modules/myNoise.js');
+const { parseMyNoiseScrape, mergeNoiseGeneratorInfo, scrapeNoiseMachineTitles, hydrateNoiseMachineInfo, mergeMissingNoiseGeneratorInfo } = require('./modules/myNoise.js');
 const standard_input = process.stdin;
 standard_input.setEncoding('utf-8');
 
@@ -17,6 +17,8 @@ function getMenuSelection() {
   console.log('..MyNoise Noise Generators..');
   console.log('    > scrape mynoise - Scrape MyNoise Noise Machines');
   console.log('    > export mynoise meta - Export MyNoise Noise Machine meta');
+  console.log('    > merge noise machine data - Merge differing versions of noise machine data');
+  console.log('    > merge missing noise machine data - Attempt to retrieve and merge missing noise machine data');
   console.log('    > scrape noise machine pages - Scrape EACH AND EVERY MyNoise Noise Machine Page to obtain titles');
   console.log('    > hydrate mynoise meta - Parses scraped noise machine pages for the correct title');
 
@@ -38,6 +40,10 @@ function getMenuSelection() {
         scrapeToFile(myNoiseMachinesUrl, myNoiseScrapeFileName); break;
       case 'export mynoise meta\r\n':
         parseMyNoiseScrape(myNoiseScrapeFileName); break;
+      case 'merge noise machine data\r\n':
+        mergeNoiseGeneratorInfo(); break;
+      case 'merge missing noise machine data\r\n':
+        mergeMissingNoiseGeneratorInfo(); break;
       case 'scrape noise machine pages\r\n':
         scrapeNoiseMachineTitles(); break;
       case 'hydrate mynoise meta\r\n':
@@ -47,5 +53,5 @@ function getMenuSelection() {
     }
   });
 }
-
-getMenuSelection();
+//getMenuSelection();
+mergeMissingNoiseGeneratorInfo();
