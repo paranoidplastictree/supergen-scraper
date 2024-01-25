@@ -1,0 +1,6 @@
+{
+    "noiseMachineFileNames": [
+        "waterfallNoiseGenerator.php",
+        "caveExplorationNoiseGenerator.php"
+    ]
+}

@@ -139,6 +139,97 @@ const parseNoiseMachineTitle = (sourcePath) => {
     return title;
 }
 
+const scrapeNoiseMachineTitlesByList = (sourcePath) => {
+    console.log('lets dance, paco');
+    const baseSavePath = '/missingNoiseMachinePages/';
+    const baseUrl = 'https://mynoise.net/NoiseMachines/';
+    
+    const data = readListFromFile(sourcePath);
+    const noiseMachineFileNames = data.noiseMachineFileNames;
+    if (!noiseMachineFileNames || noiseMachineFileNames.length === 0) {
+        console.log('No noise machine file names found in source file');
+        return;
+    }
+
+    for(var i=0;i<noiseMachineFileNames.length;i++) {
+        const noiseMachineFileName = noiseMachineFileNames[i];
+        if (noiseMachineFileName === undefined) {
+            console.log('Noise machine name is empty');
+            continue;
+        }
+
+        const noiseMachineName = noiseMachineFileName.split('.')[0];
+        const targetNoiseMachineUrl = baseUrl + noiseMachineFileName;
+        const scrapeFileName = noiseMachineName.replace(/ /g,'') + '.html';
+        const savePath = baseSavePath + scrapeFileName;
+
+        console.log('scraping ' + savePath);
+        scrapeToFile(targetNoiseMachineUrl, savePath);
+    }
+}
+
+const readListFromFile = (sourceFileName) => {
+    var fs = require('fs'),
+    filePath = sourceFileName;
+    return fs.readFileSync(filePath, { encoding: 'utf-8', flag: 'r' });
+}
+
+const supplementNoiseMachineMeta = (sourcePath) => {
+    const data = readListFromFile(sourcePath);
+    const targetPath = 'output/missing_noise_machines.json';
+    noiseMachines = parseNoiseMachineTitleNames(data);
+
+    if (!noiseMachines) {
+        console.log('No noise machines found in data');
+        return;
+    }
+
+    fs.writeFileSync(targetPath, JSON.stringify(noiseMachines));
+    console.log('Noise Generator titles parsed, json saved to: ' + targetPath);
+}
+
+const parseNoiseMachineTitleNames = (data) => {
+    const noiseMachineFileNames = data.noiseMachineFileNames;
+    const baseUrl = '/NoiseMachines/';
+    const baseScrapePath = 'scrapes/missingNoiseMachinePages/';
+    const noiseMachines = [];
+
+    if (!noiseMachineFileNames || noiseMachineFileNames.length === 0) {
+        console.log('No noise machine file names found in source file');
+        return;
+    }
+
+    for(var i=0;i<noiseMachineFileNames.length;i++) {
+        const noiseMachineFileName = noiseMachineFileNames[i];
+        if (noiseMachineFileName === undefined) {
+            console.log('Noise machine name is empty');
+            continue;
+        }
+
+        const noiseMachineName = noiseMachineFileName.split('.')[0];
+        const noiseMachineUrl = baseUrl + noiseMachineFileName;
+        const scrapeFileName = noiseMachineName.replace(/ /g,'') + '.html';
+        const sourcePath = baseScrapePath + scrapeFileName;
+        const title = parseNoiseMachineTitleName(sourcePath);
+        noiseMachines.push({
+            'noiseMachineUrlPart': noiseMachineFileName,
+            'noiseMachineUrl': noiseMachineUrl,
+            'title': title
+        });
+    }
+
+    return noiseMachines;
+}
+
+const parseNoiseMachineTitleName = (sourcePath) => {
+    const body = readScrapeFromFile(sourcePath);
+    const $ = cheerio.load(body);
+    const title = $('#titleName').text().trim();
+    return title;
+}
+
 exports.parseMyNoiseScrape = parseMyNoiseScrape;
 exports.scrapeNoiseMachineTitles = scrapeNoiseMachineTitles;
 exports.hydrateNoiseMachineInfo = hydrateNoiseMachineInfo;
+exports.scrapeNoiseMachineTitlesByList = scrapeNoiseMachineTitlesByList;
+exports.supplementNoiseMachineMeta = supplementNoiseMachineMeta;
